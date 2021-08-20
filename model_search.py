@@ -105,9 +105,9 @@ class Network(nn.Module):
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
         reduction_prev = False
-        init_layers = layers - len(pre_layer)
+        self.init_layers = layers - len(pre_layer)
         for i in range(layers):
-            if i < init_layers:
+            if i < self.init_layers:
                 if i == 4 or i == 9:
                     C_curr *= 2
                     reduction = True
@@ -122,10 +122,10 @@ class Network(nn.Module):
                 if i == 4 or i == 9:
                     C_curr *= 2
                     reduction = True
-                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i-init_layers], self.p)
+                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i-self.init_layers], self.p)
                 else:
                     reduction = False
-                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i-init_layers], self.p)
+                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i-self.init_layers], self.p)
                 reduction_prev = reduction
                 self.cells += [cell]
                 C_prev_prev, C_prev = C_prev, multiplier * C_curr
@@ -165,7 +165,7 @@ class Network(nn.Module):
         return self._criterion(logits, target) 
 
     def _initialize_alphas(self):
-        k = sum(1 for i in range(self._steps) for n in range(2+i))
+        k = sum(1 for i in range(self._steps) for n in range(2+i))    # k=14
         num_ops = self.switch_on
         self.alphas_normal = nn.Parameter(torch.FloatTensor(1e-3*np.random.randn(k, num_ops)))
         self.alphas_reduce = nn.Parameter(torch.FloatTensor(1e-3*np.random.randn(k, num_ops)))
