@@ -139,20 +139,39 @@ class Network(nn.Module):
 
     def forward(self, input):
         s0 = s1 = self.stem(input)
-        for i, cell in enumerate(self.cells):
-            if cell.reduction:
-                if self.alphas_reduce.size(1) == 1:
-                    weights = F.softmax(self.alphas_reduce, dim=0)
+        if self._layers == self.init_layers:
+            for i, cell in enumerate(self.cells):
+                if cell.reduction:
+                    if self.alphas_reduce.size(1) == 1:
+                        weights = F.softmax(self.alphas_reduce, dim=0)
+                    else:
+                        weights = F.softmax(self.alphas_reduce, dim=-1)
                 else:
-                    weights = F.softmax(self.alphas_reduce, dim=-1)
-            else:
-                if self.alphas_normal.size(1) == 1:
-                    weights = F.softmax(self.alphas_normal, dim=0)
+                    if self.alphas_normal.size(1) == 1:
+                        weights = F.softmax(self.alphas_normal, dim=0)
+                    else:
+                        weights = F.softmax(self.alphas_normal, dim=-1)
+                s0, s1 = s1, cell(s0, s1, weights)
+            out = self.global_pooling(s1)
+            feature_x = self.mlp(out.view(out.size(0),-1))
+        else:
+            for i, cell in enumerate(self.cells):
+                if i == len(self.cells)-1:
+                    if cell.reduction:
+                        if self.alphas_reduce.size(1) == 1:
+                            weights = F.softmax(self.alphas_reduce, dim=0)
+                        else:
+                            weights = F.softmax(self.alphas_reduce, dim=-1)
+                    else:
+                        if self.alphas_normal.size(1) == 1:
+                            weights = F.softmax(self.alphas_normal, dim=0)
+                        else:
+                            weights = F.softmax(self.alphas_normal, dim=-1)
                 else:
-                    weights = F.softmax(self.alphas_normal, dim=-1)
-            s0, s1 = s1, cell(s0, s1, weights)
-        out = self.global_pooling(s1)
-        feature_x = self.mlp(out.view(out.size(0),-1))
+                    weights = torch.ones(14, 8)
+                s0, s1 = s1, cell(s0, s1, weights)
+            out = self.global_pooling(s1)
+            feature_x = self.mlp(out.view(out.size(0),-1))
         return feature_x
 
     def update_p(self):
