@@ -126,8 +126,8 @@ def main():
     scaler = GradScaler(enabled=args.fp16_precision)
     pre_layer = []
 
-    if layers == args.total_layers:
-        model = Network(args.init_channels, args.out_dim, layers, pre_layer, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
+    if layers == args.init_layers:
+        model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
         layers += args.add_layer
         model = nn.DataParallel(model)
         model = model.cuda()
@@ -275,7 +275,7 @@ def main():
         switches_normal = copy.deepcopy(switches)
         switches_reduce = copy.deepcopy(switches)
         layers += 1
-        model = Network(args.init_channels, args.out_dim, layers, pre_layer, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
+        model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
         model = nn.DataParallel(model)
         model = model.cuda()
         if args.load_weight:

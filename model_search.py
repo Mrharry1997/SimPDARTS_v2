@@ -77,7 +77,7 @@ class Cell(nn.Module):
 
 class Network(nn.Module):
 
-    def __init__(self, C, out_dim, layers, pre_layer, steps=4, multiplier=4, stem_multiplier=3, switches_normal=[], switches_reduce=[], p=0.3):
+    def __init__(self, C, out_dim, layers, pre_layer, init_layers, steps=4, multiplier=4, stem_multiplier=3, switches_normal=[], switches_reduce=[], p=0.3):
         super(Network, self).__init__()
         self._C = C
         self._layers = layers
@@ -105,7 +105,7 @@ class Network(nn.Module):
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = nn.ModuleList()
         reduction_prev = False
-        self.init_layers = layers - len(pre_layer)
+        self.init_layers = init_layers
         for i in range(layers):
             if self._layers == self.init_layers or (self._layers > self.init_layers and i == (layers-1)):
                 if i == 4 or i == 9:
