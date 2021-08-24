@@ -24,9 +24,9 @@ parser = argparse.ArgumentParser(description='SimCLR+PDARTS v2')
 parser.add_argument('--data', metavar='DIR', default='/home/PJLAB/zhazhenzhou/Dataset/', help='path to dataset')
 parser.add_argument('--dataset_name', default='cifar10', help='dataset name', choices=['cifar10', 'stl10', 'cifar100'])
 parser.add_argument('--workers', type=int, default=8, help='number of workers to load dataset')
-parser.add_argument('--epochs', default=25, type=int, metavar='N', help='number of epochs for the first stage to run')
-parser.add_argument('--grow_epochs', default=6, type=int, metavar='N', help='number of epochs for train when the number of cells is appending (both for no_arch and arch)')
-parser.add_argument('-b', '--batch-size', default=96, type=int, metavar='N', help='mini-batch size (default: 96), this is the total '
+parser.add_argument('--epochs', default=1, type=int, metavar='N', help='number of epochs for the first stage to run')
+parser.add_argument('--grow_epochs', default=2, type=int, metavar='N', help='number of epochs for train when the number of cells is appending (both for no_arch and arch)')
+parser.add_argument('-b', '--batch-size', default=4, type=int, metavar='N', help='mini-batch size (default: 96), this is the total '
                                                                                     'batch size of all GPUs on the current node when '
                                                                                      'using Data Parallel or Distributed Data Parallel')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
@@ -289,11 +289,10 @@ def main():
         for k, v in model.named_parameters():
             if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
                 network_params.append(v)
-        for k, v in model.module.arch_parameters():
-            if (layers == 5 or layers == 10) and k.endswith('alphas_reduce'):
-                arch_parameter.append(v)
-            elif layers != 5 and layers != 10 and k.endswith('alphas_normal'):
-                arch_parameter.append(v)
+        if layers == 5 or layers == 10:
+            arch_parameter.append(model.module.arch_parameters()[1])
+        elif layers != 5 and layers != 10:
+            arch_parameter.append(model.module.arch_parameters()[0])
         if args.load_weight:
             optimizer = torch.optim.Adam(network_params, args.adam_lr, betas=(0.9, 0.999), weight_decay=args.weight_decay)
         else:
