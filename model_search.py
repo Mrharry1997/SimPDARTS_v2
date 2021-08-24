@@ -107,7 +107,7 @@ class Network(nn.Module):
         reduction_prev = False
         self.init_layers = layers - len(pre_layer)
         for i in range(layers):
-            if i < self.init_layers:
+            if self._layers == self.init_layers or (self._layers > self.init_layers and i == (layers-1)):
                 if i == 4 or i == 9:
                     C_curr *= 2
                     reduction = True
@@ -115,20 +115,17 @@ class Network(nn.Module):
                 else:
                     reduction = False
                     cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, switches_normal, self.p)
-                reduction_prev = reduction
-                self.cells += [cell]
-                C_prev_prev, C_prev = C_prev, multiplier*C_curr
             else:
                 if i == 4 or i == 9:
                     C_curr *= 2
                     reduction = True
-                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i-self.init_layers], self.p)
+                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i], self.p)
                 else:
                     reduction = False
-                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i-self.init_layers], self.p)
-                reduction_prev = reduction
-                self.cells += [cell]
-                C_prev_prev, C_prev = C_prev, multiplier * C_curr
+                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i], self.p)
+            reduction_prev = reduction
+            self.cells += [cell]
+            C_prev_prev, C_prev = C_prev, multiplier * C_curr
 
 
         self.global_pooling = nn.AdaptiveAvgPool2d(1)
