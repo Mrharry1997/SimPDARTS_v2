@@ -24,9 +24,9 @@ parser = argparse.ArgumentParser(description='SimCLR+PDARTS v2')
 parser.add_argument('--data', metavar='DIR', default='/home/PJLAB/zhazhenzhou/Dataset/', help='path to dataset')
 parser.add_argument('--dataset_name', default='cifar10', help='dataset name', choices=['cifar10', 'stl10', 'cifar100'])
 parser.add_argument('--workers', type=int, default=8, help='number of workers to load dataset')
-parser.add_argument('--epochs', default=1, type=int, metavar='N', help='number of epochs for the first stage to run')
-parser.add_argument('--grow_epochs', default=2, type=int, metavar='N', help='number of epochs for train when the number of cells is appending (both for no_arch and arch)')
-parser.add_argument('-b', '--batch-size', default=4, type=int, metavar='N', help='mini-batch size (default: 96), this is the total '
+parser.add_argument('--epochs', default=25, type=int, metavar='N', help='number of epochs for the first stage to run')
+parser.add_argument('--grow_epochs', default=6, type=int, metavar='N', help='number of epochs for train when the number of cells is appending (both for no_arch and arch)')
+parser.add_argument('-b', '--batch-size', default=96, type=int, metavar='N', help='mini-batch size (default: 96), this is the total '
                                                                                     'batch size of all GPUs on the current node when '
                                                                                      'using Data Parallel or Distributed Data Parallel')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
@@ -54,7 +54,7 @@ parser.add_argument('--fp16-precision', action='store_true', help='Whether or no
 parser.add_argument('--out_dim', default=128, type=int, help='feature dimension (default: 128)')
 parser.add_argument('--temperature', default=0.07, type=float, help='softmax temperature (default: 0.07)')
 parser.add_argument('--n-views', default=2, type=int, metavar='N', help='Number of views for contrastive learning training.')
-parser.add_argument('--load_weight', type=bool, default=False, help='preserve weight for previous stage')
+parser.add_argument('--load_weight', type=bool, default=True, help='preserve weight for previous stage')
 
 args = parser.parse_args()
 
@@ -440,7 +440,11 @@ def main():
         utils.save(model, os.path.join(args.save, 'weights.pt'))
 
     logging.info('Search process is finished')
-    logging.info(pre_layer)
+    final_arch = []
+    for switches_final in pre_layer:
+        final_arch.append(parse_switches(switches_final))
+    logging.info(final_arch)
+
 
 
 def parse_network(switches_normal, switches_reduce):
@@ -470,6 +474,21 @@ def parse_network(switches_normal, switches_reduce):
     )
 
     return genotype
+
+def parse_switches(switches):
+    n = 2
+    start = 0
+    gene = []
+    step = 4
+    for i in range(step):
+        end = start + n
+        for j in range(start, end):
+            for k in range(len(switches[j])):
+                if switches[j][k]:
+                    gene.append((PRIMITIVES[k], j - start))
+        start = end
+        n = n + 1
+    return gene
 
 def get_min_k(input_in, k):
     input = copy.deepcopy(input_in)
