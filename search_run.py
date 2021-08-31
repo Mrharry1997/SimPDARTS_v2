@@ -128,7 +128,7 @@ def main():
 
     if layers == args.init_layers:
         model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
-        layers += args.add_layer
+        # layers += args.add_layer
         model = nn.DataParallel(model)
         model = model.cuda()
         network_params = []
