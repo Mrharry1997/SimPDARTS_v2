@@ -300,8 +300,8 @@ def main():
                     reduce_number[i] = j
         if args.load_weight:
             model_dict = model.state_dict()
-            # pretrained_dict = torch.load(os.path.join(args.save, 'weights.pt'))
-            pretrained_dict = torch.load('./experiments/search-try-20210901-100834/weights.pt')
+            pretrained_dict = torch.load(os.path.join(args.save, 'weights.pt'))
+            # pretrained_dict = torch.load('./experiments/search-try-20210901-100834/weights.pt')
             corrected_dict = {}
             for k, v in pretrained_dict.items():
                 if 'mlp' in k:
