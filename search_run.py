@@ -332,7 +332,7 @@ def main():
                                         k_name += k_split[j]
                                     if j != len(k_split)-1: k_name += '.'
                                 corrected_dict[k_name] = v
-            print(corrected_dict.keys())
+            # print(corrected_dict.keys())
             model_dict.update(corrected_dict)
             model.load_state_dict(model_dict)
         network_params = []
