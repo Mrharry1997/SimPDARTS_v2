@@ -85,7 +85,7 @@ class Network(nn.Module):
         self._steps = steps
         self._multiplier = multiplier
         self.p = p
-        self.switches_normal = switches_normal
+        # self.switches_normal = switches_normal
         switch_ons = []
         for i in range(len(switches_normal)):
             ons = 0
