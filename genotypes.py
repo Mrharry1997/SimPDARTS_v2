@@ -13,6 +13,17 @@ PRIMITIVES = [
     'dil_conv_5x5'
 ]
 
+PRIMITIVES_INDEX = {
+    'none':0,
+    'max_pool_3x3':1,
+    'avg_pool_3x3':2,
+    'skip_connect':3,
+    'sep_conv_3x3':4,
+    'sep_conv_5x5':5,
+    'dil_conv_3x3':6,
+    'dil_conv_5x5':7
+}
+
 NASNet = Genotype(
   normal = [
     ('sep_conv_5x5', 1),

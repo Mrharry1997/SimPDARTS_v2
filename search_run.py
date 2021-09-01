@@ -494,6 +494,7 @@ def main():
     final_arch = []
     for switches_final in pre_layer:
         final_arch.append(parse_switches(switches_final))
+    logging.info('The final_arch is:  ')
     logging.info(final_arch)
 
 
