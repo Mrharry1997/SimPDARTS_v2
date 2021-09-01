@@ -127,159 +127,159 @@ def main():
     scaler = GradScaler(enabled=args.fp16_precision)
     pre_layer = []
 
-    # model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
-    # # layers += args.add_layer
-    # model = nn.DataParallel(model)
-    # model = model.cuda()
-    # model_dict = model.state_dict()
-    # network_params = []
-    # for k, v in model.named_parameters():
-    #     if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
-    #         network_params.append(v)
-    # optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
-    # optimizer_a = torch.optim.Adam(model.module.arch_parameters(), lr=args.arch_learning_rate, betas=(0.5, 0.999), weight_decay=args.arch_weight_decay)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.learning_rate_min, last_epoch=-1)
-    # epochs = args.epochs
-    # eps_no_arch = 10
-    # scale_factor = 0.2
-    # for epoch in range(epochs):
-    #     scheduler.step()
-    #     lr = scheduler.get_lr()[0]
-    #     logging.info('Epoch: %d lr: %e', epoch, lr)
-    #     epoch_start = time.time()
-    #
-    #     #training
-    #     if epoch < eps_no_arch:
-    #         model.module.p = float(drop_used_rate) * (epochs - epoch - 1) / epochs
-    #         model.module.update_p()
-    #         train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer, optimizer_a, scaler, train_arch=False)
-    #     else:
-    #         model.module.p = float(drop_used_rate) * np.exp(-(epoch - eps_no_arch) * scale_factor)
-    #         model.module.update_p()
-    #         train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer, optimizer_a, scaler, train_arch=True)
-    #
-    #     logging.info('Train_acc %f', train_acc)
-    #     epoch_duration = time.time() - epoch_start
-    #     logging.info('Epoch time: %ds', epoch_duration)
-    #
-    # utils.save(model, os.path.join(args.save, 'weights.pt'))
-    # print('------Dropping %d paths------' % num_to_drop)
-    # print('------Dropping the first stage------')
-    # # Save switches info for s-c refinement.
-    # switches_normal_2 = copy.deepcopy(switches_normal)
-    # switches_reduce_2 = copy.deepcopy(switches_reduce)
-    # # drop operations with low architecture weights
-    # arch_param = model.module.arch_parameters()
-    # normal_prob = F.softmax(arch_param[0], dim=-1).data.cpu().numpy()
-    # for i in range(14):
-    #     idxs = []
-    #     for j in range(len(PRIMITIVES)):
-    #         if switches_normal[i][j]:
-    #             idxs.append(j)
-    #         # drop all Zero operations
-    #     drop = get_min_k_no_zero(normal_prob[i, :], idxs, num_to_drop)
-    #     for idx in drop:
-    #         switches_normal[i][idxs[idx]] = False
-    # reduce_prob = F.softmax(arch_param[1], dim=-1).data.cpu().numpy()
-    # for i in range(14):
-    #     idxs = []
-    #     for j in range(len(PRIMITIVES)):
-    #         if switches_reduce[i][j]:
-    #             idxs.append(j)
-    #     drop = get_min_k_no_zero(reduce_prob[i, :], idxs, num_to_drop)
-    #     for idx in drop:
-    #         switches_reduce[i][idxs[idx]] = False
-    # logging.info('switches_normal = %s', switches_normal)
-    # logging_switches(switches_normal)
-    # logging.info('switches_reduce = %s', switches_reduce)
-    # logging_switches(switches_reduce)
-    #
-    # # restrict skip-connection
-    # normal_final = [0 for idx in range(14)]
-    # reduce_final = [0 for idx in range(14)]
-    # # remove all Zero operations
-    # for i in range(14):
-    #     if switches_normal_2[i][0] == True:
-    #         normal_prob[i][0] = 0
-    #     normal_final[i] = max(normal_prob[i])
-    #     if switches_reduce_2[i][0] == True:
-    #         reduce_prob[i][0] = 0
-    #     reduce_final[i] = max(reduce_prob[i])
-    #     # Generate Architecture, similar to DARTS
-    # keep_normal = [0, 1]
-    # keep_reduce = [0, 1]
-    # n = 3
-    # start = 2
-    # for i in range(3):
-    #     end = start + n
-    #     tbsn = normal_final[start:end]
-    #     tbsr = reduce_final[start:end]
-    #     edge_n = sorted(range(n), key=lambda x: tbsn[x])
-    #     keep_normal.append(edge_n[-1] + start)
-    #     keep_normal.append(edge_n[-2] + start)
-    #     edge_r = sorted(range(n), key=lambda x: tbsr[x])
-    #     keep_reduce.append(edge_r[-1] + start)
-    #     keep_reduce.append(edge_r[-2] + start)
-    #     start = end
-    #     n = n + 1
-    # # set switches according the ranking of arch parameters
-    # for i in range(14):
-    #     if not i in keep_normal:
-    #         for j in range(len(PRIMITIVES)):
-    #             switches_normal[i][j] = False
-    #     if not i in keep_reduce:
-    #         for j in range(len(PRIMITIVES)):
-    #             switches_reduce[i][j] = False
-    # # translate switches into genotype
-    # genotype = parse_network(switches_normal, switches_reduce)
-    # logging.info(genotype)
-    # ## restrict skipconnect (normal cell only)
-    # logging.info('Restricting skipconnect...')
-    # # generating genotypes with different numbers of skip-connect operations
-    # switches_usable = False
-    # for sks in range(0, 9):
-    #     max_sk = 8 - sks
-    #     num_sk = check_sk_number(switches_normal)
-    #     if not num_sk > max_sk:
-    #         continue
-    #     while num_sk > max_sk:
-    #         normal_prob = delete_min_sk_prob(switches_normal, switches_normal_2, normal_prob)
-    #         switches_normal = keep_1_on(switches_normal_2, normal_prob)
-    #         switches_normal = keep_2_branches(switches_normal, normal_prob)
-    #         num_sk = check_sk_number(switches_normal)
-    #     logging.info('Number of skip-connect: %d', max_sk)
-    #     genotype = parse_network(switches_normal, switches_reduce)
-    #     logging.info(genotype)
-    #
-    #     if not switches_usable and max_sk <= 2:
-    #         switches_normal_usable = switches_normal
-    #         switches_reduce_usable = switches_reduce
-    #         logging.info('usable_switches_normal = %s', switches_normal_usable)
-    #         logging.info('usable_switches_reduce = %s', switches_reduce_usable)
-    #         switches_usable = True
-    # if not switches_usable:
-    #     switches_normal_usable = switches_normal
-    #     switches_reduce_usable = switches_reduce
-    #     logging.info('usable_switches_normal = %s', switches_normal_usable)
-    #     logging.info('usable_switches_reduce = %s', switches_reduce_usable)
-    #
-    # for i in range(layers):
-    #     if i == 4 or i == 9:
-    #         pre_layer.append(switches_reduce_usable)
-    #     else:
-    #         pre_layer.append(switches_normal_usable)
-    #
-    # utils.save(model, os.path.join(args.save, 'weights.pt'))
+    model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
+    # layers += args.add_layer
+    model = nn.DataParallel(model)
+    model = model.cuda()
+    model_dict = model.state_dict()
+    network_params = []
+    for k, v in model.named_parameters():
+        if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
+            network_params.append(v)
+    optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
+    optimizer_a = torch.optim.Adam(model.module.arch_parameters(), lr=args.arch_learning_rate, betas=(0.5, 0.999), weight_decay=args.arch_weight_decay)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.learning_rate_min, last_epoch=-1)
+    epochs = args.epochs
+    eps_no_arch = 10
+    scale_factor = 0.2
+    for epoch in range(epochs):
+        scheduler.step()
+        lr = scheduler.get_lr()[0]
+        logging.info('Epoch: %d lr: %e', epoch, lr)
+        epoch_start = time.time()
 
-    switches_reduce_usable = [[False, False, False, False, False, False, True, False], [False, False, False, False, False, True, False, False], [False, False, False, False, False, False, False, True], [False, True, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, True, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, True, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, True, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, True, False, False]]
-    switches_normal_usable = [[False, False, False, True, False, False, False, False], [False, False, False, True, False, False, False, False], [False, True, False, False, False, False, False, False], [False, False, False, False, False, False, False, True], [False, False, False, False, False, False, False, False], [False, False, False, False, True, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, True], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, True, False, False, False, False, False], [False, True, False, False, False, False, False, False]]
+        #training
+        if epoch < eps_no_arch:
+            model.module.p = float(drop_used_rate) * (epochs - epoch - 1) / epochs
+            model.module.update_p()
+            train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer, optimizer_a, scaler, train_arch=False)
+        else:
+            model.module.p = float(drop_used_rate) * np.exp(-(epoch - eps_no_arch) * scale_factor)
+            model.module.update_p()
+            train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer, optimizer_a, scaler, train_arch=True)
 
+        logging.info('Train_acc %f', train_acc)
+        epoch_duration = time.time() - epoch_start
+        logging.info('Epoch time: %ds', epoch_duration)
+
+    utils.save(model, os.path.join(args.save, 'weights.pt'))
+    print('------Dropping %d paths------' % num_to_drop)
+    print('------Dropping the first stage------')
+    # Save switches info for s-c refinement.
+    switches_normal_2 = copy.deepcopy(switches_normal)
+    switches_reduce_2 = copy.deepcopy(switches_reduce)
+    # drop operations with low architecture weights
+    arch_param = model.module.arch_parameters()
+    normal_prob = F.softmax(arch_param[0], dim=-1).data.cpu().numpy()
+    for i in range(14):
+        idxs = []
+        for j in range(len(PRIMITIVES)):
+            if switches_normal[i][j]:
+                idxs.append(j)
+            # drop all Zero operations
+        drop = get_min_k_no_zero(normal_prob[i, :], idxs, num_to_drop)
+        for idx in drop:
+            switches_normal[i][idxs[idx]] = False
+    reduce_prob = F.softmax(arch_param[1], dim=-1).data.cpu().numpy()
+    for i in range(14):
+        idxs = []
+        for j in range(len(PRIMITIVES)):
+            if switches_reduce[i][j]:
+                idxs.append(j)
+        drop = get_min_k_no_zero(reduce_prob[i, :], idxs, num_to_drop)
+        for idx in drop:
+            switches_reduce[i][idxs[idx]] = False
+    logging.info('switches_normal = %s', switches_normal)
+    logging_switches(switches_normal)
+    logging.info('switches_reduce = %s', switches_reduce)
+    logging_switches(switches_reduce)
+
+    # restrict skip-connection
+    normal_final = [0 for idx in range(14)]
+    reduce_final = [0 for idx in range(14)]
+    # remove all Zero operations
+    for i in range(14):
+        if switches_normal_2[i][0] == True:
+            normal_prob[i][0] = 0
+        normal_final[i] = max(normal_prob[i])
+        if switches_reduce_2[i][0] == True:
+            reduce_prob[i][0] = 0
+        reduce_final[i] = max(reduce_prob[i])
+        # Generate Architecture, similar to DARTS
+    keep_normal = [0, 1]
+    keep_reduce = [0, 1]
+    n = 3
+    start = 2
+    for i in range(3):
+        end = start + n
+        tbsn = normal_final[start:end]
+        tbsr = reduce_final[start:end]
+        edge_n = sorted(range(n), key=lambda x: tbsn[x])
+        keep_normal.append(edge_n[-1] + start)
+        keep_normal.append(edge_n[-2] + start)
+        edge_r = sorted(range(n), key=lambda x: tbsr[x])
+        keep_reduce.append(edge_r[-1] + start)
+        keep_reduce.append(edge_r[-2] + start)
+        start = end
+        n = n + 1
+    # set switches according the ranking of arch parameters
+    for i in range(14):
+        if not i in keep_normal:
+            for j in range(len(PRIMITIVES)):
+                switches_normal[i][j] = False
+        if not i in keep_reduce:
+            for j in range(len(PRIMITIVES)):
+                switches_reduce[i][j] = False
+    # translate switches into genotype
+    genotype = parse_network(switches_normal, switches_reduce)
+    logging.info(genotype)
+    ## restrict skipconnect (normal cell only)
+    logging.info('Restricting skipconnect...')
+    # generating genotypes with different numbers of skip-connect operations
+    switches_usable = False
+    for sks in range(0, 9):
+        max_sk = 8 - sks
+        num_sk = check_sk_number(switches_normal)
+        if not num_sk > max_sk:
+            continue
+        while num_sk > max_sk:
+            normal_prob = delete_min_sk_prob(switches_normal, switches_normal_2, normal_prob)
+            switches_normal = keep_1_on(switches_normal_2, normal_prob)
+            switches_normal = keep_2_branches(switches_normal, normal_prob)
+            num_sk = check_sk_number(switches_normal)
+        logging.info('Number of skip-connect: %d', max_sk)
+        genotype = parse_network(switches_normal, switches_reduce)
+        logging.info(genotype)
+
+        if not switches_usable and max_sk <= 2:
+            switches_normal_usable = switches_normal
+            switches_reduce_usable = switches_reduce
+            logging.info('usable_switches_normal = %s', switches_normal_usable)
+            logging.info('usable_switches_reduce = %s', switches_reduce_usable)
+            switches_usable = True
+    if not switches_usable:
+        switches_normal_usable = switches_normal
+        switches_reduce_usable = switches_reduce
+        logging.info('usable_switches_normal = %s', switches_normal_usable)
+        logging.info('usable_switches_reduce = %s', switches_reduce_usable)
 
     for i in range(layers):
         if i == 4 or i == 9:
             pre_layer.append(switches_reduce_usable)
         else:
             pre_layer.append(switches_normal_usable)
+
+    utils.save(model, os.path.join(args.save, 'weights.pt'))
+
+    # switches_reduce_usable = [[False, False, False, False, False, False, True, False], [False, False, False, False, False, True, False, False], [False, False, False, False, False, False, False, True], [False, True, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, True, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, True, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, True, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, True, False, False]]
+    # switches_normal_usable = [[False, False, False, True, False, False, False, False], [False, False, False, True, False, False, False, False], [False, True, False, False, False, False, False, False], [False, False, False, False, False, False, False, True], [False, False, False, False, False, False, False, False], [False, False, False, False, True, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, True], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, True, False, False, False, False, False], [False, True, False, False, False, False, False, False]]
+    #
+    #
+    # for i in range(layers):
+    #     if i == 4 or i == 9:
+    #         pre_layer.append(switches_reduce_usable)
+    #     else:
+    #         pre_layer.append(switches_normal_usable)
 
     while layers <= args.total_layers:
         switches_normal = copy.deepcopy(switches)
