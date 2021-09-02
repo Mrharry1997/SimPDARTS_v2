@@ -281,7 +281,7 @@ def main():
     #     else:
     #         pre_layer.append(switches_normal_usable)
 
-    while layers <= args.total_layers:
+    while layers < args.total_layers:
         switches_normal = copy.deepcopy(switches)
         switches_reduce = copy.deepcopy(switches)
         layers += args.add_layer
