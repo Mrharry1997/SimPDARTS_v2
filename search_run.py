@@ -25,7 +25,7 @@ parser.add_argument('--data', metavar='DIR', default='/home/PJLAB/zhazhenzhou/Da
 parser.add_argument('--dataset_name', default='cifar10', help='dataset name', choices=['cifar10', 'stl10', 'cifar100'])
 parser.add_argument('--workers', type=int, default=8, help='number of workers to load dataset')
 parser.add_argument('--epochs', default=25, type=int, metavar='N', help='number of epochs for the first stage to run')
-parser.add_argument('--grow_epochs', default=6, type=int, metavar='N', help='number of epochs for train when the number of cells is appending (both for no_arch and arch)')
+parser.add_argument('--grow_epochs', default=10, type=int, metavar='N', help='number of epochs for train when the number of cells is appending (both for no_arch and arch)')
 parser.add_argument('-b', '--batch-size', default=96, type=int, metavar='N', help='mini-batch size (default: 96), this is the total '
                                                                                     'batch size of all GPUs on the current node when '
                                                                                      'using Data Parallel or Distributed Data Parallel')
@@ -281,6 +281,8 @@ def main():
     #     else:
     #         pre_layer.append(switches_normal_usable)
 
+    adam_lr = args.adam_lr
+
     while layers < args.total_layers:
         switches_normal = copy.deepcopy(switches)
         switches_reduce = copy.deepcopy(switches)
@@ -345,7 +347,9 @@ def main():
         elif layers != 5 and layers != 10:
             arch_parameter.append(model.module.arch_parameters()[0])
         if args.load_weight:
-            optimizer = torch.optim.Adam(network_params, args.adam_lr, betas=(0.9, 0.999), weight_decay=args.weight_decay)
+            if layers > args.init_layers + args.add_layer and adam_lr > 0.00001:
+                adam_lr = adam_lr * 0.5
+            optimizer = torch.optim.Adam(network_params, adam_lr, betas=(0.9, 0.999), weight_decay=args.weight_decay)
         else:
             optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
         optimizer_a = torch.optim.Adam(arch_parameter, lr=args.arch_learning_rate, betas=(0.5, 0.999), weight_decay=args.arch_weight_decay)
