@@ -127,7 +127,7 @@ def main():
     scaler = GradScaler(enabled=args.fp16_precision)
     pre_layer = []
 
-    model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
+    model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, args.total_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
     # layers += args.add_layer
     model = nn.DataParallel(model)
     model = model.cuda()
@@ -287,7 +287,9 @@ def main():
         switches_normal = copy.deepcopy(switches)
         switches_reduce = copy.deepcopy(switches)
         layers += args.add_layer
-        model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
+        if layers > args.total_layers:
+            layers = args.total_layers
+        model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, args.total_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
         model = nn.DataParallel(model)
         model = model.cuda()
         normal_number = [-1] * len(switches_normal_usable)
@@ -342,9 +344,12 @@ def main():
         for k, v in model.named_parameters():
             if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
                 network_params.append(v)
-        if layers == 5 or layers == 10:
+        if (layers == 5 or layers == 10) and args.add_layer == 1:
             arch_parameter.append(model.module.arch_parameters()[1])
-        elif layers != 5 and layers != 10:
+        elif len(pre_layer) < 5 <= layers or len(pre_layer) < 10 <= layers:
+            arch_parameter.append(model.module.arch_parameters()[0])
+            arch_parameter.append(model.module.arch_parameters()[1])
+        else:
             arch_parameter.append(model.module.arch_parameters()[0])
         if args.load_weight:
             if layers > args.init_layers + args.add_layer and adam_lr > 0.00001:

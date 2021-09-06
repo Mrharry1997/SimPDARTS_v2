@@ -10,7 +10,7 @@ from genotypes import Genotype
 
 class MixedOp(nn.Module):
 
-    def __init__(self, C, stride, switch, p):
+    def __init__(self, C, stride, switch, p, reduction):
         super(MixedOp, self).__init__()
         self.m_ops = nn.ModuleList()
         self.p = p
@@ -20,6 +20,8 @@ class MixedOp(nn.Module):
                 op = OPS[primitive](C, stride, False)
                 if 'pool' in primitive:
                     op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
+                    if not reduction:
+                        op = nn.Sequential(op, nn.Dropout(self.p))
                 if isinstance(op, Identity) and p > 0:
                     op = nn.Sequential(op, nn.Dropout(self.p))
                 self.m_ops.append(op)
@@ -53,7 +55,7 @@ class Cell(nn.Module):
         for i in range(self._steps):
             for j in range(2+i):
                 stride = 2 if reduction and j < 2 else 1
-                op = MixedOp(C, stride, switch=switches[switch_count], p=self.p)
+                op = MixedOp(C, stride, switch=switches[switch_count], p=self.p, reduction=self.reduction)
                 self.cell_ops.append(op)
                 switch_count = switch_count + 1
     
@@ -77,7 +79,7 @@ class Cell(nn.Module):
 
 class Network(nn.Module):
 
-    def __init__(self, C, out_dim, layers, pre_layer, init_layers, steps=4, multiplier=4, stem_multiplier=3, switches_normal=[], switches_reduce=[], p=0.3):
+    def __init__(self, C, out_dim, layers, pre_layer, init_layers, total_layers, steps=4, multiplier=4, stem_multiplier=3, switches_normal=[], switches_reduce=[], p=0.3):
         super(Network, self).__init__()
         self._C = C
         self._layers = layers
@@ -85,6 +87,7 @@ class Network(nn.Module):
         self._steps = steps
         self._multiplier = multiplier
         self.p = p
+        self.pre_layer = pre_layer
         # self.switches_normal = switches_normal
         switch_ons = []
         for i in range(len(switches_normal)):
@@ -107,8 +110,8 @@ class Network(nn.Module):
         reduction_prev = False
         self.init_layers = init_layers
         for i in range(layers):
-            if self._layers == self.init_layers or (self._layers > self.init_layers and i == (layers-1)):
-                if i == 4 or i == 9:
+            if self._layers == self.init_layers or (self._layers > self.init_layers and i >= len(self.pre_layer)):
+                if i == total_layers//3-1 or i == total_layers*2//3-1:
                     C_curr *= 2
                     reduction = True
                     cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, switches_reduce, self.p)
@@ -116,13 +119,13 @@ class Network(nn.Module):
                     reduction = False
                     cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, switches_normal, self.p)
             else:
-                if i == 4 or i == 9:
+                if i == total_layers//3-1 or i == total_layers*2//3-1:
                     C_curr *= 2
                     reduction = True
-                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i], self.p)
+                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, self.pre_layer[i], 0)
                 else:
                     reduction = False
-                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, pre_layer[i], self.p)
+                    cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, self.pre_layer[i], 0)
             reduction_prev = reduction
             self.cells += [cell]
             C_prev_prev, C_prev = C_prev, multiplier * C_curr
@@ -153,7 +156,7 @@ class Network(nn.Module):
             feature_x = self.mlp(out.view(out.size(0),-1))
         else:
             for i, cell in enumerate(self.cells):
-                if i == len(self.cells)-1:
+                if i >= len(self.pre_layer):
                     if cell.reduction:
                         if self.alphas_reduce.size(1) == 1:
                             weights = F.softmax(self.alphas_reduce, dim=0)
