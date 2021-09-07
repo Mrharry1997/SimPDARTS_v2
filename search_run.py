@@ -264,7 +264,7 @@ def main():
         logging.info('usable_switches_reduce = %s', switches_reduce_usable)
 
     for i in range(layers):
-        if i == 4 or i == 9:
+        if i == args.total_layers//3-1 or i == args.total_layers*2//3-1:
             pre_layer.append(switches_reduce_usable)
         else:
             pre_layer.append(switches_normal_usable)
@@ -313,8 +313,8 @@ def main():
                 if k in model_dict.keys():
                     corrected_dict[k] = v
                 k_split = k.split('.')
-                if len(k_split) > 3 and ( layers - args.add_layer == args.init_layers or int(k_split[2]) > layers - 2*args.add_layer - 1):
-                    if int(k_split[2]) != 4 and int(k_split[2]) != 9:
+                if len(k_split) > 3 and (layers - args.add_layer == args.init_layers or int(k_split[2]) > layers - 2*args.add_layer - 1):
+                    if int(k_split[2]) != args.total_layers//3-1 and int(k_split[2]) != args.total_layers*2//3-1:
                         for i in range(len(normal_number)):
                             if ('m_ops.'+str(normal_number[i])+'.') in k and ('cell_ops.'+str(i)+'.') in k:
                                 k_name = ''
@@ -344,9 +344,9 @@ def main():
         for k, v in model.named_parameters():
             if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
                 network_params.append(v)
-        if (layers == 5 or layers == 10) and args.add_layer == 1:
+        if (layers == args.total_layers//3 or layers == args.total_layers*2//3) and args.add_layer == 1:
             arch_parameter.append(model.module.arch_parameters()[1])
-        elif len(pre_layer) < 5 <= layers or len(pre_layer) < 10 <= layers:
+        elif len(pre_layer) < args.total_layers//3 <= layers or len(pre_layer) < args.total_layers*2//3 <= layers:
             arch_parameter.append(model.module.arch_parameters()[0])
             arch_parameter.append(model.module.arch_parameters()[1])
         else:
@@ -414,7 +414,12 @@ def main():
             drop = get_min_k_no_zero(reduce_prob[i, :], idxs, num_to_drop)
             for idx in drop:
                 switches_reduce[i][idxs[idx]] = False
-        if layers == 5 or layers == 10:
+        if (layers == args.total_layers//3 or layers == args.total_layers*2//3) and args.add_layer == 1:
+            logging.info('switches_reduce = %s', switches_reduce)
+            logging_switches(switches_reduce)
+        elif len(pre_layer) < args.total_layers//3 <= layers or len(pre_layer) < args.total_layers*2//3 <= layers:
+            logging.info('switches_normal = %s', switches_normal)
+            logging_switches(switches_normal)
             logging.info('switches_reduce = %s', switches_reduce)
             logging_switches(switches_reduce)
         else:
@@ -489,12 +494,13 @@ def main():
             switches_normal_usable = switches_normal
             switches_reduce_usable = switches_reduce
 
-        if layers == 5 or layers == 10:
-            logging.info('usable_switches_reduce = %s', switches_reduce_usable)
-            pre_layer.append(switches_reduce_usable)
-        else:
-            logging.info('usable_switches_normal = %s', switches_normal_usable)
-            pre_layer.append(switches_normal_usable)
+        for i in range(args.add_layer):
+            if len(pre_layer)+1 == args.total_layers//3 or len(pre_layer)+1 == args.total_layers*2//3:
+                logging.info('usable_switches_reduce = %s', switches_reduce_usable)
+                pre_layer.append(switches_reduce_usable)
+            else:
+                logging.info('usable_switches_normal = %s', switches_normal_usable)
+                pre_layer.append(switches_normal_usable)
 
         logging.info('The %d layers is finished'%layers)
         utils.save(model, os.path.join(args.save, 'weights.pt'))
