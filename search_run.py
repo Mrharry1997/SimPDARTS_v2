@@ -471,7 +471,7 @@ def main():
         ## restrict skipconnect (normal cell only)
         logging.info('Restricting skipconnect...')
         # generating genotypes with different numbers of skip-connect operations
-        switches_usable = False
+        switches_resk = False
         for sks in range(0, 9):
             max_sk = 8 - sks
             num_sk = check_sk_number(switches_normal)
@@ -486,15 +486,40 @@ def main():
             genotype = parse_network(switches_normal, switches_reduce)
             logging.info(genotype)
 
-            if not switches_usable and max_sk <= 2:
-                switches_normal_usable = switches_normal
-                switches_reduce_usable = switches_reduce
+            if not switches_resk and max_sk <= 2:
+                switches_normal_resk = switches_normal
+                switches_reduce_resk = switches_reduce
+                switches_resk = True
+        if not switches_resk:
+            switches_normal_resk = switches_normal
+            switches_reduce_resk = switches_reduce
+
+        logging.info('Restricting pooling layers...')
+        # generating genotypes with different numbers of pooling operations (including max-pooling and avg-pooling)
+        switches_usable = False
+        for pls in range(0, 9):
+            max_pl = 8 - pls
+            num_pl = check_pl_number(switches_normal_resk)
+            if not num_pl > max_pl:
+                continue
+            while num_pl > max_pl:
+                normal_prob = delete_min_pl_prob(switches_normal_resk, switches_normal_2, normal_prob)
+                switches_normal_resk = keep_1_on(switches_normal_2, normal_prob)
+                switches_normal_resk = keep_2_branches(switches_normal_resk, normal_prob)
+                num_pl = check_pl_number(switches_normal_resk)
+            logging.info('Numver of pooling layer: %d', max_pl)
+            genotype = parse_network(switches_normal_resk, switches_reduce_resk)
+            logging.info(genotype)
+
+            if not switches_usable and max_pl <= 2:
+                switches_normal_usable = switches_normal_resk
+                switches_reduce_usable = switches_reduce_resk
                 switches_usable = True
         if not switches_usable:
-            switches_normal_usable = switches_normal
-            switches_reduce_usable = switches_reduce
+            switches_normal_usable = switches_normal_resk
+            switches_reduce_usable = switches_reduce_resk
 
-        for i in range(args.add_layer):
+        for _ in range(args.add_layer):
             if len(pre_layer)+1 == args.total_layers//3 or len(pre_layer)+1 == args.total_layers*2//3:
                 logging.info('usable_switches_reduce = %s', switches_reduce_usable)
                 pre_layer.append(switches_reduce_usable)
@@ -605,6 +630,14 @@ def check_sk_number(switches):
 
     return count
 
+def check_pl_number(switches):
+    count = 0
+    for i in range(len(switches)):
+        if switches[i][1] or switches[i][2]:
+            count = count + 1
+
+    return count
+
 
 def delete_min_sk_prob(switches_in, switches_bk, probs_in):
     def _get_sk_idx(switches_in, switches_bk, k):
@@ -626,6 +659,50 @@ def delete_min_sk_prob(switches_in, switches_bk, probs_in):
     d_idx = np.argmin(sk_prob)
     idx = _get_sk_idx(switches_in, switches_bk, d_idx)
     probs_out[d_idx][idx] = 0.0
+
+    return probs_out
+
+def delete_min_pl_prob(switches_in, switches_bk, probs_in):
+    def _get_pl_idx(switches_in, switches_bk, k):
+        idx = []
+        if not switches_in[k][1] and not switches_in[k][2]:
+            return [-1, -1]
+
+        if switches_in[k][1]:
+            idx_max = 0
+            for i in range(1):
+                if switches_bk[k][i]:
+                    idx_max = idx_max + 1
+            idx.append(idx_max)
+        else:
+            idx.append(-1)
+
+        if switches_in[k][2]:
+            idx_avg = 0
+            for i in range(2):
+                if switches_bk[k][i]:
+                    idx_avg = idx_avg + 1
+            idx.append(idx_avg)
+        else:
+            idx.append(-1)
+
+        return idx
+
+    probs_out = copy.deepcopy(probs_in)
+    pl_prob = [1.0 for i in range(len(switches_bk))]
+    for i in range(len(switches_in)):
+        idx = _get_pl_idx(switches_in, switches_bk, i)
+        if not idx == [-1, -1]:
+            if not idx[0] == -1:
+                pl_prob[i] = probs_out[i][idx[0]]
+            else:
+                pl_prob[i] = probs_out[i][idx[1]]
+    d_idx = np.argmin(pl_prob)
+    idx = _get_sk_idx(switches_in, switches_bk, d_idx)
+    if not idx[0] == -1:
+        probs_out[d_idx][idx[0]] = 0.0
+    else:
+        probs_out[d_idx][idx[1]] = 0.0
 
     return probs_out
 
