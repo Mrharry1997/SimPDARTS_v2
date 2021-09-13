@@ -31,6 +31,7 @@ parser.add_argument('-b', '--batch-size', default=96, type=int, metavar='N', hel
                                                                                      'using Data Parallel or Distributed Data Parallel')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--learning_rate_min', type=float, default=0.0, help='min learning rate')
+parser.add_argument('--learning_rate_min_later', type=float, default=0.000001, help='min learning rate')
 parser.add_argument('--adam_lr', type=float, default=0.001, help='when load_weight is True, use Adam optimizer')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
@@ -136,7 +137,7 @@ def main():
     for k, v in model.named_parameters():
         if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
             network_params.append(v)
-    optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
+    optimizer = torch.optim.SGD(network_params, lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
     optimizer_a = torch.optim.Adam(model.module.arch_parameters(), lr=args.arch_learning_rate, betas=(0.5, 0.999), weight_decay=args.arch_weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.learning_rate_min, last_epoch=-1)
     epochs = args.epochs
@@ -358,7 +359,7 @@ def main():
         else:
             optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
         optimizer_a = torch.optim.Adam(arch_parameter, lr=args.arch_learning_rate, betas=(0.5, 0.999), weight_decay=args.arch_weight_decay)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.grow_epochs, eta_min=args.learning_rate_min, last_epoch=-1)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.grow_epochs, eta_min=args.learning_rate_min_later, last_epoch=-1)
         sm_dim = -1
         epochs = args.grow_epochs
         eps_no_arch = args.grow_epochs//2
@@ -698,7 +699,7 @@ def delete_min_pl_prob(switches_in, switches_bk, probs_in):
             else:
                 pl_prob[i] = probs_out[i][idx[1]]
     d_idx = np.argmin(pl_prob)
-    idx = _get_sk_idx(switches_in, switches_bk, d_idx)
+    idx = _get_pl_idx(switches_in, switches_bk, d_idx)
     if not idx[0] == -1:
         probs_out[d_idx][idx[0]] = 0.0
     else:
