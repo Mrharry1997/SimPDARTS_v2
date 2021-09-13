@@ -488,12 +488,12 @@ def main():
             logging.info(genotype)
 
             if not switches_resk and max_sk <= 2:
-                switches_normal_resk = switches_normal
-                switches_reduce_resk = switches_reduce
+                switches_normal_resk = copy.deepcopy(switches_normal)
+                switches_reduce_resk = copy.deepcopy(switches_reduce)
                 switches_resk = True
         if not switches_resk:
-            switches_normal_resk = switches_normal
-            switches_reduce_resk = switches_reduce
+            switches_normal_resk = copy.deepcopy(switches_normal)
+            switches_reduce_resk = copy.deepcopy(switches_reduce)
 
         logging.info('Restricting pooling layers...')
         # generating genotypes with different numbers of pooling operations (including max-pooling and avg-pooling)
@@ -513,12 +513,12 @@ def main():
             logging.info(genotype)
 
             if not switches_usable and max_pl <= 2:
-                switches_normal_usable = switches_normal_resk
-                switches_reduce_usable = switches_reduce_resk
+                switches_normal_usable = copy.deepcopy(switches_normal_resk)
+                switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
                 switches_usable = True
         if not switches_usable:
-            switches_normal_usable = switches_normal_resk
-            switches_reduce_usable = switches_reduce_resk
+            switches_normal_usable = copy.deepcopy(switches_normal_resk)
+            switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
 
         for _ in range(args.add_layer):
             if len(pre_layer)+1 == args.total_layers//3 or len(pre_layer)+1 == args.total_layers*2//3:
