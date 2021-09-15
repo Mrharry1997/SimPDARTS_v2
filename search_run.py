@@ -470,55 +470,62 @@ def main():
         genotype = parse_network(switches_normal, switches_reduce)
         logging.info(genotype)
         ## restrict skipconnect (normal cell only)
-        logging.info('Restricting skipconnect...')
+        logging.info('Restricting skipconnect and pooling layers...')
         # generating genotypes with different numbers of skip-connect operations
         switches_resk = False
         for sks in range(0, 9):
             max_sk = 8 - sks
+            max_pl = 0
             num_sk = check_sk_number(switches_normal)
-            if not num_sk > max_sk:
+            num_pl = check_pl_number(switches_normal)
+            if not num_sk > max_sk and not num_pl > max_pl:
                 continue
-            while num_sk > max_sk:
+            while num_sk > max_sk or num_pl > max_pl:
                 normal_prob = delete_min_sk_prob(switches_normal, switches_normal_2, normal_prob)
                 switches_normal = keep_1_on(switches_normal_2, normal_prob)
                 switches_normal = keep_2_branches(switches_normal, normal_prob)
                 num_sk = check_sk_number(switches_normal)
+                normal_prob = delete_min_pl_prob(switches_normal, switches_normal_2, normal_prob)
+                switches_normal = keep_1_on(switches_normal_2, normal_prob)
+                switches_normal = keep_2_branches(switches_normal, normal_prob)
+                num_pl = check_pl_number(switches_normal)
             logging.info('Number of skip-connect: %d', max_sk)
+            logging.info('Numver of pooling layer: %d', max_pl)
             genotype = parse_network(switches_normal, switches_reduce)
             logging.info(genotype)
 
             if not switches_resk and max_sk <= 2:
-                switches_normal_resk = copy.deepcopy(switches_normal)
-                switches_reduce_resk = copy.deepcopy(switches_reduce)
-                switches_resk = True
-        if not switches_resk:
-            switches_normal_resk = copy.deepcopy(switches_normal)
-            switches_reduce_resk = copy.deepcopy(switches_reduce)
-
-        logging.info('Restricting pooling layers...')
-        # generating genotypes with different numbers of pooling operations (including max-pooling and avg-pooling)
-        switches_usable = False
-        for pls in range(0, 9):
-            max_pl = 8 - pls
-            num_pl = check_pl_number(switches_normal_resk)
-            if not num_pl > max_pl:
-                continue
-            while num_pl > max_pl:
-                normal_prob = delete_min_pl_prob(switches_normal_resk, switches_normal_2, normal_prob)
-                switches_normal_resk = keep_1_on(switches_normal_2, normal_prob)
-                switches_normal_resk = keep_2_branches(switches_normal_resk, normal_prob)
-                num_pl = check_pl_number(switches_normal_resk)
-            logging.info('Numver of pooling layer: %d', max_pl)
-            genotype = parse_network(switches_normal_resk, switches_reduce_resk)
-            logging.info(genotype)
-
-            if not switches_usable and max_pl <= 2:
-                switches_normal_usable = copy.deepcopy(switches_normal_resk)
-                switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
+                switches_normal_usable = copy.deepcopy(switches_normal)
+                switches_reduce_usable = copy.deepcopy(switches_reduce)
                 switches_usable = True
         if not switches_usable:
-            switches_normal_usable = copy.deepcopy(switches_normal_resk)
-            switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
+            switches_normal_usable = copy.deepcopy(switches_normal)
+            switches_reduce_usable = copy.deepcopy(switches_reduce)
+
+        # logging.info('Restricting pooling layers...')
+        # # generating genotypes with different numbers of pooling operations (including max-pooling and avg-pooling)
+        # switches_usable = False
+        # for pls in range(0, 9):
+        #     max_pl = 8 - pls
+        #     num_pl = check_pl_number(switches_normal_resk)
+        #     if not num_pl > max_pl:
+        #         continue
+        #     while num_pl > max_pl:
+        #         normal_prob = delete_min_pl_prob(switches_normal_resk, switches_normal_2, normal_prob)
+        #         switches_normal_resk = keep_1_on(switches_normal_2, normal_prob)
+        #         switches_normal_resk = keep_2_branches(switches_normal_resk, normal_prob)
+        #         num_pl = check_pl_number(switches_normal_resk)
+        #     logging.info('Numver of pooling layer: %d', max_pl)
+        #     genotype = parse_network(switches_normal_resk, switches_reduce_resk)
+        #     logging.info(genotype)
+        #
+        #     if not switches_usable and max_pl <= 0:
+        #         switches_normal_usable = copy.deepcopy(switches_normal_resk)
+        #         switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
+        #         switches_usable = True
+        # if not switches_usable:
+        #     switches_normal_usable = copy.deepcopy(switches_normal_resk)
+        #     switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
 
         for _ in range(args.add_layer):
             if len(pre_layer)+1 == args.total_layers//3 or len(pre_layer)+1 == args.total_layers*2//3:

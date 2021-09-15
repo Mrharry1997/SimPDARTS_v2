@@ -83,7 +83,7 @@ def main():
     model = Network(args.init_channels, CIFAR_CLASSES, args.layers, args.auxiliary, architecture)
     model = torch.nn.DataParallel(model)
     model = model.cuda()
-    model_dict = model.state_dict()
+    # model_dict = model.state_dict()
     layer_number = [[[-1, -1]] * 8 for _ in range(len(architecture))]
     for i in range(len(architecture)):
         for j in range(len(architecture[i])):
