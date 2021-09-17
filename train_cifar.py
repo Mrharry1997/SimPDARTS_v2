@@ -40,7 +40,7 @@ parser.add_argument('--grad_clip', type=float, default=5, help='gradient clippin
 parser.add_argument('--tmp_data_dir', type=str, default='/tmp/cache/', help='temp data dir')
 parser.add_argument('--note', type=str, default='try', help='note for this run')
 parser.add_argument('--cifar100', action='store_true', default=False, help='if use cifar100')
-parser.add_argument('--load_weight', type=bool, default=True, help='load weight to train')
+parser.add_argument('--load_weight', type=bool, default=False, help='load weight to train')
 parser.add_argument('--weight_path', type=str, default='./experiments/', help='the path of load weight')
 
 args, unparsed = parser.parse_known_args()

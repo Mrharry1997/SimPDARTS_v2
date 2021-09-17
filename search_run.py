@@ -26,6 +26,7 @@ parser.add_argument('--dataset_name', default='cifar10', help='dataset name', ch
 parser.add_argument('--workers', type=int, default=8, help='number of workers to load dataset')
 parser.add_argument('--epochs', default=25, type=int, metavar='N', help='number of epochs for the first stage to run')
 parser.add_argument('--grow_epochs', default=10, type=int, metavar='N', help='number of epochs for train when the number of cells is appending (both for no_arch and arch)')
+parser.add_argument('--final_epochs', default=25, type=int, metavar='N', help='number of epochs for the last finetune stage to run')
 parser.add_argument('-b', '--batch-size', default=96, type=int, metavar='N', help='mini-batch size (default: 96), this is the total '
                                                                                     'batch size of all GPUs on the current node when '
                                                                                      'using Data Parallel or Distributed Data Parallel')
@@ -481,14 +482,16 @@ def main():
             if not num_sk > max_sk and not num_pl > max_pl:
                 continue
             while num_sk > max_sk or num_pl > max_pl:
-                normal_prob = delete_min_sk_prob(switches_normal, switches_normal_2, normal_prob)
-                switches_normal = keep_1_on(switches_normal_2, normal_prob)
-                switches_normal = keep_2_branches(switches_normal, normal_prob)
-                num_sk = check_sk_number(switches_normal)
-                normal_prob = delete_min_pl_prob(switches_normal, switches_normal_2, normal_prob)
-                switches_normal = keep_1_on(switches_normal_2, normal_prob)
-                switches_normal = keep_2_branches(switches_normal, normal_prob)
-                num_pl = check_pl_number(switches_normal)
+                if num_sk > max_sk:
+                    normal_prob = delete_min_sk_prob(switches_normal, switches_normal_2, normal_prob)
+                    switches_normal = keep_1_on(switches_normal_2, normal_prob)
+                    switches_normal = keep_2_branches(switches_normal, normal_prob)
+                    num_sk = check_sk_number(switches_normal)
+                if num_pl > max_pl:
+                    normal_prob = delete_min_pl_prob(switches_normal, switches_normal_2, normal_prob)
+                    switches_normal = keep_1_on(switches_normal_2, normal_prob)
+                    switches_normal = keep_2_branches(switches_normal, normal_prob)
+                    num_pl = check_pl_number(switches_normal)
             logging.info('Number of skip-connect: %d', max_sk)
             logging.info('Numver of pooling layer: %d', max_pl)
             genotype = parse_network(switches_normal, switches_reduce)
@@ -502,30 +505,6 @@ def main():
             switches_normal_usable = copy.deepcopy(switches_normal)
             switches_reduce_usable = copy.deepcopy(switches_reduce)
 
-        # logging.info('Restricting pooling layers...')
-        # # generating genotypes with different numbers of pooling operations (including max-pooling and avg-pooling)
-        # switches_usable = False
-        # for pls in range(0, 9):
-        #     max_pl = 8 - pls
-        #     num_pl = check_pl_number(switches_normal_resk)
-        #     if not num_pl > max_pl:
-        #         continue
-        #     while num_pl > max_pl:
-        #         normal_prob = delete_min_pl_prob(switches_normal_resk, switches_normal_2, normal_prob)
-        #         switches_normal_resk = keep_1_on(switches_normal_2, normal_prob)
-        #         switches_normal_resk = keep_2_branches(switches_normal_resk, normal_prob)
-        #         num_pl = check_pl_number(switches_normal_resk)
-        #     logging.info('Numver of pooling layer: %d', max_pl)
-        #     genotype = parse_network(switches_normal_resk, switches_reduce_resk)
-        #     logging.info(genotype)
-        #
-        #     if not switches_usable and max_pl <= 0:
-        #         switches_normal_usable = copy.deepcopy(switches_normal_resk)
-        #         switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
-        #         switches_usable = True
-        # if not switches_usable:
-        #     switches_normal_usable = copy.deepcopy(switches_normal_resk)
-        #     switches_reduce_usable = copy.deepcopy(switches_reduce_resk)
 
         for _ in range(args.add_layer):
             if len(pre_layer)+1 == args.total_layers//3 or len(pre_layer)+1 == args.total_layers*2//3:
@@ -545,6 +524,108 @@ def main():
     logging.info('The final_arch is:  ')
     logging.info(final_arch)
 
+    # the last stage for fine-tune
+    logging.info('The last fine-tune stage')
+
+    switches_normal = copy.deepcopy(switches)
+    switches_reduce = copy.deepcopy(switches)
+
+    model = Network(args.init_channels, args.out_dim, layers, pre_layer, args.init_layers, args.total_layers, switches_normal=switches_normal, switches_reduce=switches_reduce, p=float(drop_used_rate))
+    model = nn.DataParallel(model)
+    model = model.cuda()
+    normal_number = [-1] * len(switches_normal_usable)
+    reduce_number = [-1] * len(switches_reduce_usable)
+    for i in range(len(switches_normal_usable)):
+        for j in range(len(switches_normal_usable[i])):
+            if switches_normal_usable[i][j]:
+                normal_number[i] = j
+    for i in range(len(switches_reduce_usable)):
+        for j in range(len(switches_reduce_usable[i])):
+            if switches_reduce_usable[i][j]:
+                reduce_number[i] = j
+    if args.load_weight:
+        model_dict = model.state_dict()
+        pretrained_dict = torch.load(os.path.join(args.save, 'weights.pt'))
+        corrected_dict = {}
+        for k, v in pretrained_dict.items():
+            if 'mlp' in k:
+                continue
+            if k in model_dict.keys():
+                corrected_dict[k] = v
+            k_split = k.split('.')
+            if len(k_split) > 3 and (
+                    layers - args.add_layer == args.init_layers or int(k_split[2]) > layers - 2 * args.add_layer - 1):
+                if int(k_split[2]) != args.total_layers // 3 - 1 and int(k_split[2]) != args.total_layers * 2 // 3 - 1:
+                    for i in range(len(normal_number)):
+                        if ('m_ops.' + str(normal_number[i]) + '.') in k and ('cell_ops.' + str(i) + '.') in k:
+                            k_name = ''
+                            for j in range(len(k_split)):
+                                if j == 6:
+                                    k_name += '0'
+                                else:
+                                    k_name += k_split[j]
+                                if j != len(k_split) - 1: k_name += '.'
+                            corrected_dict[k_name] = v
+                else:
+                    for i in range(len(reduce_number)):
+                        if ('m_ops.' + str(reduce_number[i]) + '.') in k and ('cell_ops.' + str(i) + '.') in k:
+                            k_name = ''
+                            for j in range(len(k_split)):
+                                if j == 6:
+                                    k_name += '0'
+                                else:
+                                    k_name += k_split[j]
+                                if j != len(k_split) - 1: k_name += '.'
+                            corrected_dict[k_name] = v
+        model_dict.update(corrected_dict)
+        model.load_state_dict(model_dict)
+    network_params = []
+    arch_parameter = []
+    for k, v in model.named_parameters():
+        if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
+            network_params.append(v)
+
+    if args.load_weight:
+        if layers > args.init_layers + args.add_layer and adam_lr > 0.00001:
+            adam_lr = adam_lr * 0.5
+        optimizer = torch.optim.Adam(network_params, adam_lr, betas=(0.9, 0.999), weight_decay=args.weight_decay)
+    else:
+        optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum,
+                                    weight_decay=args.weight_decay)
+    optimizer_a = torch.optim.Adam(arch_parameter, lr=args.arch_learning_rate, betas=(0.5, 0.999),
+                                   weight_decay=args.arch_weight_decay)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.grow_epochs,
+                                                           eta_min=args.learning_rate_min_later, last_epoch=-1)
+    sm_dim = -1
+    epochs = args.grow_epochs
+    eps_no_arch = args.grow_epochs // 2
+    scale_factor = 0.2
+    for epoch in range(epochs):
+        # if load_weight is True then warmup for the first 5 epochs
+        if not args.load_weight:
+            scheduler.step()
+        elif epoch >= eps_no_arch:
+            scheduler.step()
+
+        lr = scheduler.get_lr()[0]
+        logging.info('Epoch: %d lr: %e', epoch, lr)
+        epoch_start = time.time()
+
+        # training
+
+        model.module.p = float(drop_used_rate) * (epochs - epoch - 1) / epochs
+        model.module.update_p()
+        train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer,
+                                     optimizer_a, scaler, train_arch=False)
+
+        logging.info('Train_acc %f', train_acc)
+        epoch_duration = time.time() - epoch_start
+        logging.info('Epoch time: %ds', epoch_duration)
+
+    utils.save(model, os.path.join(args.save, 'finetune_weights.pt'))
+    logging.info('The finetune is finished')
+    logging.info('The final_arch is:  ')
+    logging.info(final_arch)
 
 
 def parse_network(switches_normal, switches_reduce):

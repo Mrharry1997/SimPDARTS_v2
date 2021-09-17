@@ -24,6 +24,14 @@ PRIMITIVES_INDEX = {
     'dil_conv_5x5':7
 }
 
+NORMAL_SPACE = [
+    'none',
+    'sep_conv_3x3',
+    'sep_conv_5x5',
+    'dil_conv_3x3',
+    'dil_conv_5x5'
+]
+
 NASNet = Genotype(
   normal = [
     ('sep_conv_5x5', 1),
