@@ -26,6 +26,7 @@ PRIMITIVES_INDEX = {
 
 NORMAL_SPACE = [
     'none',
+    'skip_connect',
     'sep_conv_3x3',
     'sep_conv_5x5',
     'dil_conv_3x3',
