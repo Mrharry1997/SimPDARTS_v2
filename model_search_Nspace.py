@@ -102,10 +102,10 @@ class Network(nn.Module):
                     ons = ons + 1
             switch_ons_normal.append(ons)
             ons = 0
-        for i in range(len(switch_ons_reduce)):
+        for i in range(len(switches_reduce)):
             ons = 0
-            for j in range(len(switch_ons_reduce[i])):
-                if switch_ons_reduce[i][j]:
+            for j in range(len(switches_reduce[i])):
+                if switches_reduce[i][j]:
                     ons = ons + 1
             switch_ons_reduce.append(ons)
             ons = 0

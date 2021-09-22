@@ -314,7 +314,7 @@ def main():
             # pretrained_dict = torch.load('./experiments/search-try-20210901-100834/weights.pt')
             corrected_dict = {}
             for k, v in pretrained_dict.items():
-                if 'mlp' in k:
+                if 'mlp' in k or 'alphas_normal' in k or 'alphas_reduce' in k:
                     continue
                 if k in model_dict.keys():
                     corrected_dict[k] = v
