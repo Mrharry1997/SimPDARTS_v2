@@ -592,8 +592,8 @@ def main():
     else:
         optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum,
                                     weight_decay=args.weight_decay)
-    optimizer_a = torch.optim.Adam(arch_parameter, lr=args.arch_learning_rate, betas=(0.5, 0.999),
-                                   weight_decay=args.arch_weight_decay)
+    # optimizer_a = torch.optim.Adam(arch_parameter, lr=args.arch_learning_rate, betas=(0.5, 0.999),
+    #                                weight_decay=args.arch_weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.grow_epochs,
                                                            eta_min=args.learning_rate_min_later, last_epoch=-1)
     sm_dim = -1
@@ -616,7 +616,7 @@ def main():
         model.module.p = float(drop_used_rate) * (epochs - epoch - 1) / epochs
         model.module.update_p()
         train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer,
-                                     optimizer_a, scaler, train_arch=False)
+                                     None, scaler, train_arch=False)
 
         logging.info('Train_acc %f', train_acc)
         epoch_duration = time.time() - epoch_start
