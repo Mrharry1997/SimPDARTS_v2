@@ -580,7 +580,7 @@ def main():
         model_dict.update(corrected_dict)
         model.load_state_dict(model_dict)
     network_params = []
-    arch_parameter = []
+    # arch_parameter = []
     for k, v in model.named_parameters():
         if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
             network_params.append(v)
@@ -597,8 +597,8 @@ def main():
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.grow_epochs,
                                                            eta_min=args.learning_rate_min_later, last_epoch=-1)
     sm_dim = -1
-    epochs = args.grow_epochs
-    eps_no_arch = args.grow_epochs // 2
+    epochs = args.final_epochs
+    eps_no_arch = args.final_epochs // 2
     scale_factor = 0.2
     for epoch in range(epochs):
         # if load_weight is True then warmup for the first 5 epochs

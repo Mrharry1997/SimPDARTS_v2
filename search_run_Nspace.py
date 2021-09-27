@@ -583,17 +583,11 @@ def main():
         model_dict.update(corrected_dict)
         model.load_state_dict(model_dict)
     network_params = []
-    arch_parameter = []
+    # arch_parameter = []
     for k, v in model.named_parameters():
         if not (k.endswith('alphas_normal') or k.endswith('alphas_reduce')):
             network_params.append(v)
-    if (layers == args.total_layers // 3 or layers == args.total_layers * 2 // 3) and args.add_layer == 1:
-        arch_parameter.append(model.module.arch_parameters()[1])
-    elif len(pre_layer) < args.total_layers // 3 <= layers or len(pre_layer) < args.total_layers * 2 // 3 <= layers:
-        arch_parameter.append(model.module.arch_parameters()[0])
-        arch_parameter.append(model.module.arch_parameters()[1])
-    else:
-        arch_parameter.append(model.module.arch_parameters()[0])
+
     if args.load_weight:
         if layers > args.init_layers + args.add_layer and adam_lr > 0.00001:
             adam_lr = adam_lr * 0.5
@@ -601,13 +595,13 @@ def main():
     else:
         optimizer = torch.optim.SGD(network_params, args.learning_rate, momentum=args.momentum,
                                     weight_decay=args.weight_decay)
-    optimizer_a = torch.optim.Adam(arch_parameter, lr=args.arch_learning_rate, betas=(0.5, 0.999),
-                                   weight_decay=args.arch_weight_decay)
+    # optimizer_a = torch.optim.Adam(arch_parameter, lr=args.arch_learning_rate, betas=(0.5, 0.999),
+    #                                weight_decay=args.arch_weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.grow_epochs,
                                                            eta_min=args.learning_rate_min_later, last_epoch=-1)
     sm_dim = -1
-    epochs = args.grow_epochs
-    eps_no_arch = args.grow_epochs // 2
+    epochs = args.final_epochs
+    eps_no_arch = args.final_epochs // 2
     scale_factor = 0.2
     for epoch in range(epochs):
         # if load_weight is True then warmup for the first 5 epochs
@@ -621,16 +615,12 @@ def main():
         epoch_start = time.time()
 
         # training
-        if epoch < eps_no_arch:
-            model.module.p = float(drop_used_rate) * (epochs - epoch - 1) / epochs
-            model.module.update_p()
-            train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer,
-                                         optimizer_a, scaler, train_arch=False)
-        else:
-            model.module.p = float(drop_used_rate) * np.exp(-(epoch - eps_no_arch) * scale_factor)
-            model.module.update_p()
-            train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer,
-                                         optimizer_a, scaler, train_arch=True)
+
+        model.module.p = float(drop_used_rate) * (epochs - epoch - 1) / epochs
+        model.module.update_p()
+        train_acc, train_obj = train(train_queue, valid_queue, model, network_params, criterion, optimizer,
+                                     optimizer_a, scaler, train_arch=False)
+
 
         logging.info('Train_acc %f', train_acc)
         epoch_duration = time.time() - epoch_start
