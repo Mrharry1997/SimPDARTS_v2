@@ -477,6 +477,33 @@ def main():
         genotype = parse_network(switches_normal, switches_reduce)
         logging.info(genotype)
 
+        switches_usable = False
+        for sks in range(0, 9):
+            max_sk = 8 - sks
+            num_sk = check_sk_number(switches_normal)
+            if not num_sk > max_sk:
+                continue
+            while num_sk > max_sk:
+                normal_prob = delete_min_sk_prob_normal(switches_normal, switches_normal_2, normal_prob)
+                switches_normal = keep_1_on_normal(switches_normal_2, normal_prob)
+                switches_normal = keep_2_branches_normal(switches_normal, normal_prob)
+                num_sk = check_sk_number(switches_normal)
+            logging.info('Number of skip-connect: %d', max_sk)
+            genotype = parse_network(switches_normal, switches_reduce)
+            logging.info(genotype)
+
+            if not switches_usable and max_sk <= 2:
+                switches_normal_usable = switches_normal
+                switches_reduce_usable = switches_reduce
+                logging.info('usable_switches_normal = %s', switches_normal_usable)
+                logging.info('usable_switches_reduce = %s', switches_reduce_usable)
+                switches_usable = True
+        if not switches_usable:
+            switches_normal_usable = switches_normal
+            switches_reduce_usable = switches_reduce
+            logging.info('usable_switches_normal = %s', switches_normal_usable)
+            logging.info('usable_switches_reduce = %s', switches_reduce_usable)
+
         switches_normal_usable = copy.deepcopy(switches_normal)
         switches_reduce_usable = copy.deepcopy(switches_reduce)
 
@@ -524,7 +551,7 @@ def main():
         pretrained_dict = torch.load(os.path.join(args.save, 'weights.pt'))
         corrected_dict = {}
         for k, v in pretrained_dict.items():
-            if 'mlp' in k:
+            if 'mlp' in k or 'alphas_normal' in k or 'alphas_reduce' in k:
                 continue
             if k in model_dict.keys():
                 corrected_dict[k] = v
@@ -765,6 +792,29 @@ def delete_min_sk_prob(switches_in, switches_bk, probs_in):
 
     return probs_out
 
+def delete_min_sk_prob_normal(switches_in, switches_bk, probs_in):
+    def _get_sk_idx(switches_in, switches_bk, k):
+        if not switches_in[k][1]:
+            idx = -1
+        else:
+            idx = 0
+            for i in range(1):
+                if switches_bk[k][i]:
+                    idx = idx + 1
+        return idx
+
+    probs_out = copy.deepcopy(probs_in)
+    sk_prob = [1.0 for i in range(len(switches_bk))]
+    for i in range(len(switches_in)):
+        idx = _get_sk_idx(switches_in, switches_bk, i)
+        if not idx == -1:
+            sk_prob[i] = probs_out[i][idx]
+    d_idx = np.argmin(sk_prob)
+    idx = _get_sk_idx(switches_in, switches_bk, d_idx)
+    probs_out[d_idx][idx] = 0.0
+
+    return probs_out
+
 def delete_min_pl_prob(switches_in, switches_bk, probs_in):
     def _get_pl_idx(switches_in, switches_bk, k):
         idx = []
@@ -809,6 +859,17 @@ def delete_min_pl_prob(switches_in, switches_bk, probs_in):
 
     return probs_out
 
+def keep_1_on_normal(switches_in, probs):
+    switches = copy.deepcopy(switches_in)
+    for i in range(len(switches)):
+        idxs = []
+        for j in range(len(NORMAL_SPACE)):
+            if switches[i][j]:
+                idxs.append(j)
+        drop = get_min_k_no_zero(probs[i, :], idxs, 5)
+        for idx in drop:
+            switches[i][idxs[idx]] = False
+    return switches
 
 def keep_1_on(switches_in, probs):
     switches = copy.deepcopy(switches_in)
@@ -842,6 +903,28 @@ def keep_2_branches(switches_in, probs):
     for i in range(len(switches)):
         if not i in keep:
             for j in range(len(PRIMITIVES)):
+                switches[i][j] = False
+    return switches
+
+def keep_2_branches_normal(switches_in, probs):
+    switches = copy.deepcopy(switches_in)
+    final_prob = [0.0 for i in range(len(switches))]
+    for i in range(len(switches)):
+        final_prob[i] = max(probs[i])
+    keep = [0, 1]
+    n = 3
+    start = 2
+    for i in range(3):
+        end = start + n
+        tb = final_prob[start:end]
+        edge = sorted(range(n), key=lambda x: tb[x])
+        keep.append(edge[-1] + start)
+        keep.append(edge[-2] + start)
+        start = end
+        n = n + 1
+    for i in range(len(switches)):
+        if not i in keep:
+            for j in range(len(NORMAL_SPACE)):
                 switches[i][j] = False
     return switches
 

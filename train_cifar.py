@@ -20,13 +20,13 @@ from train_model import NetworkCIFAR as Network
 
 parser = argparse.ArgumentParser("cifar_SimPDARTS_v2")
 parser.add_argument('--workers', type=int, default=4, help='number of workers')
-parser.add_argument('--batch_size', type=int, default=128, help='batch size')
+parser.add_argument('--batch_size', type=int, default=32, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--epochs', type=int, default=600, help='num of training epochs')
-parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
+parser.add_argument('--init_channels', type=int, default=16, help='num of init channels')
 parser.add_argument('--layers', type=int, default=15, help='total number of layers')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
@@ -37,10 +37,10 @@ parser.add_argument('--save', type=str, default='./experiments/', help='experime
 parser.add_argument('--seed', type=int, default=0, help='random seed')
 parser.add_argument('--arch', type=str, default='v2_test', help='which architecture to use')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
-parser.add_argument('--tmp_data_dir', type=str, default='/tmp/cache/', help='temp data dir')
+parser.add_argument('--tmp_data_dir', type=str, default='/home/harry/datasets', help='temp data dir')
 parser.add_argument('--note', type=str, default='try', help='note for this run')
 parser.add_argument('--cifar100', action='store_true', default=False, help='if use cifar100')
-parser.add_argument('--load_weight', type=bool, default=False, help='load weight to train')
+parser.add_argument('--load_weight', action='store_true', default=True, help='load weight to train')
 parser.add_argument('--weight_path', type=str, default='./experiments/', help='the path of load weight')
 
 args, unparsed = parser.parse_known_args()
@@ -84,7 +84,7 @@ def main():
     model = torch.nn.DataParallel(model)
     model = model.cuda()
     # model_dict = model.state_dict()
-    layer_number = [[[-1, -1]] * 8 for _ in range(len(architecture))]
+    layer_number = [[[-1, -1] for _ in range(8)] for _ in range(len(architecture))]
     for i in range(len(architecture)):
         for j in range(len(architecture[i])):
             layer_number[i][j][0] = PRIMITIVES_INDEX[architecture[i][j][0]]
@@ -104,10 +104,13 @@ def main():
         for k, v in pretrained_dict.items():
             if k in model_dict.keys():
                 corrected_dict[k] = v
+                continue
             k_split = k.split('.')
             if len(k_split) > 3:
                 for i in range(8):
-                    if ('m_ops.' + str(layer_number[int(k_split[2])][i][1]) + '.') in k and ('cell_ops.' + str(layer_number[int(k_split[2])][i][0]) + '.') in k:
+                    if ('cell_ops.' + str(layer_number[int(k_split[2])][i][1]) + '.') in k:
+                        if layer_number[int(k_split[2])][i][0] == 1 or layer_number[int(k_split[2])][i][0] == 2:
+                            continue
                         k_name = ''
                         for j in range(len(k_split)):
                             if j == 3:
@@ -120,7 +123,7 @@ def main():
                                 k_name += k_split[j]
                             if j != len(k_split) - 1: k_name += '.'
                         corrected_dict[k_name] = v
-        print(corrected_dict.keys())
+        # print(corrected_dict.keys())
         model_dict.update(corrected_dict)
         model.load_state_dict(model_dict)
     logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
