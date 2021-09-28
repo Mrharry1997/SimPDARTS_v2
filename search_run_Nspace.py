@@ -274,15 +274,6 @@ def main():
 
     utils.save(model, os.path.join(args.save, 'weights.pt'))
 
-    # switches_reduce_usable = [[False, False, False, False, False, False, True, False], [False, False, False, False, False, True, False, False], [False, False, False, False, False, False, False, True], [False, True, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, True, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, True, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, True, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, True, False, False]]
-    # switches_normal_usable = [[False, False, False, True, False, False, False, False], [False, False, False, True, False, False, False, False], [False, True, False, False, False, False, False, False], [False, False, False, False, False, False, False, True], [False, False, False, False, False, False, False, False], [False, False, False, False, True, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, True], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, True, False, False, False, False, False], [False, True, False, False, False, False, False, False]]
-    #
-    #
-    # for i in range(layers):
-    #     if i == 4 or i == 9:
-    #         pre_layer.append(switches_reduce_usable)
-    #     else:
-    #         pre_layer.append(switches_normal_usable)
 
     adam_lr = args.adam_lr
     switches_small = []

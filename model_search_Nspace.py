@@ -24,8 +24,6 @@ class MixedOp(nn.Module):
                 op = OPS[primitive](C, stride, False)
                 if 'pool' in primitive:
                     op = nn.Sequential(op, nn.BatchNorm2d(C, affine=False))
-                    if not reduction:
-                        op = nn.Sequential(op, nn.Dropout(self.p))
                 if isinstance(op, Identity) and p > 0:
                     op = nn.Sequential(op, nn.Dropout(self.p))
                 self.m_ops.append(op)
@@ -92,6 +90,7 @@ class Network(nn.Module):
         self._multiplier = multiplier
         self.p = p
         self.pre_layer = pre_layer
+        self.total_layers = total_layers
         # self.switches_normal = switches_normal
         switch_ons_normal = []
         switch_ons_reduce = []
@@ -181,7 +180,10 @@ class Network(nn.Module):
                         else:
                             weights = F.softmax(self.alphas_normal, dim=-1)
                 else:
-                    weights = torch.ones(14, 8)
+                    if i < self.init_layers or i == self.total_layers//3-1 or i == self.total_layers*2//3-1:
+                        weights = torch.ones(14, len(PRIMITIVES))
+                    else:
+                        weights = torch.ones(14, len(NORMAL_SPACE))
                 s0, s1 = s1, cell(s0, s1, weights)
             out = self.global_pooling(s1)
             feature_x = self.mlp(out.view(out.size(0),-1))
