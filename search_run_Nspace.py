@@ -679,7 +679,10 @@ def parse_switches(switches):
         for j in range(start, end):
             for k in range(len(switches[j])):
                 if switches[j][k]:
-                    gene.append((PRIMITIVES[k], j - start))
+                    if len(switches[0]) == len(NORMAL_SPACE):
+                        gene.append((NORMAL_SPACE[k], j - start))
+                    else:
+                        gene.append((PRIMITIVES[k], j - start))
         start = end
         n = n + 1
     return gene
@@ -735,8 +738,12 @@ def logging_normal_switches(switches):
 
 def check_sk_number(switches):
     count = 0
+    if len(switches[0]) == len(NORMAL_SPACE):
+        skip_pos = 1
+    else:
+        skip_pos = 3
     for i in range(len(switches)):
-        if switches[i][3]:
+        if switches[i][skip_pos]:
             count = count + 1
 
     return count

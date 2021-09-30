@@ -33,6 +33,15 @@ NORMAL_SPACE = [
     'dil_conv_5x5'
 ]
 
+NORMAL_SPACE_INDEX = {
+    'none':0,
+    'skip_connect':1,
+    'sep_conv_3x3':2,
+    'sep_conv_5x5':3,
+    'dil_conv_3x3':4,
+    'dil_conv_5x5':5
+}
+
 NASNet = Genotype(
   normal = [
     ('sep_conv_5x5', 1),
