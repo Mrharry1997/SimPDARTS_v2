@@ -15,7 +15,7 @@ import torch.utils
 import copy
 import torch.nn.functional as F
 import torchvision.datasets as dset
-from model_search_Nspace import Network
+from model_sup_search_Nspace import Network
 from genotypes import PRIMITIVES
 from genotypes import NORMAL_SPACE
 from genotypes import Genotype
@@ -59,6 +59,8 @@ parser.add_argument('--out_dim', default=128, type=int, help='feature dimension 
 parser.add_argument('--temperature', default=0.07, type=float, help='softmax temperature (default: 0.07)')
 parser.add_argument('--n-views', default=2, type=int, metavar='N', help='Number of views for contrastive learning training.')
 parser.add_argument('--load_weight', type=bool, default=True, help='preserve weight for previous stage')
+parser.add_argument('--cifar100', action='store_true', default=False, help='search with cifar100 dataset')
+
 
 args = parser.parse_args()
 
@@ -98,9 +100,9 @@ def main():
     else:
         train_transform, valid_transform = utils._data_transforms_cifar10(args)
     if args.cifar100:
-        train_data = dset.CIFAR100(root=args.tmp_data_dir, train=True, download=True, transform=train_transform)
+        train_data = dset.CIFAR100(root=args.data, train=True, download=True, transform=train_transform)
     else:
-        train_data = dset.CIFAR10(root=args.tmp_data_dir, train=True, download=True, transform=train_transform)
+        train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
 
     num_train = len(train_data)
     indices = list(range(num_train))

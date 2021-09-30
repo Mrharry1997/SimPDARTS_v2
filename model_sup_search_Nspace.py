@@ -162,7 +162,7 @@ class Network(nn.Module):
                         weights = F.softmax(self.alphas_normal, dim=-1)
                 s0, s1 = s1, cell(s0, s1, weights)
             out = self.global_pooling(s1)
-            feature_x = self.mlp(out.view(out.size(0),-1))
+            logits = self.classifier(out.view(out.size(0),-1))
         else:
             for i, cell in enumerate(self.cells):
                 if i >= len(self.pre_layer):
@@ -183,8 +183,8 @@ class Network(nn.Module):
                         weights = torch.ones(14, len(NORMAL_SPACE))
                 s0, s1 = s1, cell(s0, s1, weights)
             out = self.global_pooling(s1)
-            feature_x = self.mlp(out.view(out.size(0),-1))
-        return feature_x
+            logits = self.classifier(out.view(out.size(0),-1))
+        return logits
 
     def update_p(self):
         for cell in self.cells:
