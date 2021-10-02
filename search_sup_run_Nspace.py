@@ -23,7 +23,7 @@ from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description='SimCLR+PDARTS v2')
-parser.add_argument('--data', metavar='DIR', default='/home/PJLAB/zhazhenzhou/Dataset/', help='path to dataset')
+parser.add_argument('--data', metavar='DIR', default='./dataset/', help='path to dataset')
 parser.add_argument('--dataset_name', default='cifar10', help='dataset name', choices=['cifar10', 'stl10', 'cifar100'])
 parser.add_argument('--workers', type=int, default=8, help='number of workers to load dataset')
 parser.add_argument('--epochs', default=25, type=int, metavar='N', help='number of epochs for the first stage to run')
@@ -41,7 +41,7 @@ parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight dec
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')     #same with train
 parser.add_argument('--init_layers', type=int, default=5, help='init number of layers')
-parser.add_argument('--total_layers', type=int, default=15, help='total number of layers')
+parser.add_argument('--total_layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--add_layer', type=int, default=1, help='number of layer that add each time')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
@@ -315,7 +315,7 @@ def main():
             # pretrained_dict = torch.load('./experiments/search-try-20210901-100834/weights.pt')
             corrected_dict = {}
             for k, v in pretrained_dict.items():
-                if 'mlp' in k or 'alphas_normal' in k or 'alphas_reduce' in k:
+                if 'classifier' in k or 'alphas_normal' in k or 'alphas_reduce' in k:
                     continue
                 if k in model_dict.keys():
                     corrected_dict[k] = v

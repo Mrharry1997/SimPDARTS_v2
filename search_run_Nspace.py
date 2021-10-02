@@ -40,7 +40,7 @@ parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight dec
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')     #same with train
 parser.add_argument('--init_layers', type=int, default=5, help='init number of layers')
-parser.add_argument('--total_layers', type=int, default=15, help='total number of layers')
+parser.add_argument('--total_layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--add_layer', type=int, default=1, help='number of layer that add each time')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')

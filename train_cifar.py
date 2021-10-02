@@ -22,12 +22,13 @@ parser = argparse.ArgumentParser("cifar_SimPDARTS_v2")
 parser.add_argument('--workers', type=int, default=4, help='number of workers')
 parser.add_argument('--batch_size', type=int, default=128, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
+parser.add_argument('--adam_lr', type=float, default=0.001, help='init Adam learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--epochs', type=int, default=600, help='num of training epochs')
 parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
-parser.add_argument('--layers', type=int, default=15, help='total number of layers')
+parser.add_argument('--layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
@@ -40,8 +41,9 @@ parser.add_argument('--grad_clip', type=float, default=5, help='gradient clippin
 parser.add_argument('--tmp_data_dir', type=str, default='/home/harry/datasets', help='temp data dir')
 parser.add_argument('--note', type=str, default='try', help='note for this run')
 parser.add_argument('--cifar100', action='store_true', default=False, help='if use cifar100')
-parser.add_argument('--load_weight', action='store_true', default=True, help='load weight to train')
+parser.add_argument('--load_weight', action='store_true', default=False, help='load weight to train')
 parser.add_argument('--weight_path', type=str, default='./experiments/', help='the path of load weight')
+parser.add_argument('--train_portion', type=float, default=1, help='portion of training data')
 
 args, unparsed = parser.parse_known_args()
 
@@ -99,10 +101,10 @@ def main():
 
     if args.load_weight:
         model_dict = model.state_dict()
-        pretrained_dict = torch.load(os.path.join(args.weight_path, 'weights.pt'))
+        pretrained_dict = torch.load(os.path.join(args.weight_path, 'finetune_weights.pt'))
         corrected_dict = {}
         for k, v in pretrained_dict.items():
-            if k in model_dict.keys():
+            if k in model_dict.keys() and 'classifier' not in k:
                 corrected_dict[k] = v
                 continue
             k_split = k.split('.')
@@ -130,12 +132,11 @@ def main():
 
     criterion = nn.CrossEntropyLoss()
     criterion = criterion.cuda()
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        args.learning_rate,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay
-        )
+    if args.load_weight:
+        args.learning_rate = args.adam_lr
+        optimizer = torch.optim.Adam(model.parameters(), args.learning_rate, betas=(0.9, 0.999), weight_decay=args.weight_decay)
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
 
     if args.cifar100:
         train_transform, valid_transform = utils._data_transforms_cifar100(args)
@@ -148,8 +149,14 @@ def main():
         train_data = dset.CIFAR10(root=args.tmp_data_dir, train=True, download=True, transform=train_transform)
         valid_data = dset.CIFAR10(root=args.tmp_data_dir, train=False, download=True, transform=valid_transform)
 
+    num_train = len(train_data)
+    indices = list(range(num_train))
+    split = int(np.floor(args.train_portion * num_train))
+
     train_queue = torch.utils.data.DataLoader(
-        train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=args.workers)
+        train_data, batch_size=args.batch_size, sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]), pin_memory=True, num_workers=args.workers)
+    # train_queue = torch.utils.data.DataLoader(
+    #     train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=args.workers)
 
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.workers)
