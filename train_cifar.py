@@ -140,7 +140,7 @@ def main():
     if args.load_weight:
         args.learning_rate = args.adam_lr
         optimizer = torch.optim.Adam(model.parameters(), args.learning_rate, betas=(0.9, 0.999), weight_decay=args.weight_decay)
-        classifier_optimizer = torch.optim.Adam(model.classifier.parameters(), args.learning_rate, weight_decay=args.weight_decay)
+        classifier_optimizer = torch.optim.Adam(model.module.classifier.parameters(), args.learning_rate, weight_decay=args.weight_decay)
         scheduler_warm = torch.optim.lr_scheduler.LambdaLR(classifier_optimizer, lr_lambda=lambda epoch:(epoch / args.warmup_epochs))
     else:
         optimizer = torch.optim.SGD(model.parameters(), args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
