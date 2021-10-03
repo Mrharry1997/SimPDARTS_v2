@@ -22,11 +22,12 @@ parser = argparse.ArgumentParser("cifar_SimPDARTS_v2")
 parser.add_argument('--workers', type=int, default=4, help='number of workers')
 parser.add_argument('--batch_size', type=int, default=128, help='batch size')
 parser.add_argument('--learning_rate', type=float, default=0.025, help='init learning rate')
-parser.add_argument('--adam_lr', type=float, default=0.001, help='init Adam learning rate')
+parser.add_argument('--adam_lr', type=float, default=0.0001, help='init Adam learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--weight_decay', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--epochs', type=int, default=600, help='num of training epochs')
+parser.add_argument('--warmup_epochs', type=int, default=10, help='num of training epochs')
 parser.add_argument('--init_channels', type=int, default=36, help='num of init channels')
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
@@ -128,6 +129,10 @@ def main():
         # print(corrected_dict.keys())
         model_dict.update(corrected_dict)
         model.load_state_dict(model_dict)
+
+        for name, param in model.named_parameters():
+            if 'classifier' not in name:
+                param.requires_grad = False
     logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
     criterion = nn.CrossEntropyLoss()
@@ -135,8 +140,11 @@ def main():
     if args.load_weight:
         args.learning_rate = args.adam_lr
         optimizer = torch.optim.Adam(model.parameters(), args.learning_rate, betas=(0.9, 0.999), weight_decay=args.weight_decay)
+        classifier_optimizer = torch.optim.Adam(model.classifier.parameters(), args.learning_rate, weight_decay=args.weight_decay)
+        scheduler_warm = torch.optim.lr_scheduler.LambdaLR(classifier_optimizer, lr_lambda=lambda epoch:(epoch / args.warmup_epochs))
     else:
         optimizer = torch.optim.SGD(model.parameters(), args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
+        args.warmup_epochs = 0
 
     if args.cifar100:
         train_transform, valid_transform = utils._data_transforms_cifar100(args)
@@ -160,9 +168,19 @@ def main():
 
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.workers)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=(args.epochs - args.warmup_epochs))
+
     best_acc = 0.0
     for epoch in range(args.epochs):
+        if epoch == args.warmup_epochs:
+            for param in model.parameters():
+                param.requires_grad = True
+        if epoch < args.warmup_epochs:
+            optimizer = classifier_optimizer
+            scheduler = scheduler_warm
+        else:
+            optimizer = optimizer
+            scheduler = scheduler
         scheduler.step()
         logging.info('Epoch: %d lr %e', epoch, scheduler.get_lr()[0])
         model.module.drop_path_prob = args.drop_path_prob * epoch / args.epochs
