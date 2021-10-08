@@ -255,14 +255,14 @@ def main():
         logging.info(genotype)
 
         if not switches_usable and max_sk <= 2:
-            switches_normal_usable = switches_normal
-            switches_reduce_usable = switches_reduce
+            switches_normal_usable = copy.deepcopy(switches_normal)
+            switches_reduce_usable = copy.deepcopy(switches_reduce)
             logging.info('usable_switches_normal = %s', switches_normal_usable)
             logging.info('usable_switches_reduce = %s', switches_reduce_usable)
             switches_usable = True
     if not switches_usable:
-        switches_normal_usable = switches_normal
-        switches_reduce_usable = switches_reduce
+        switches_normal_usable = copy.deepcopy(switches_normal)
+        switches_reduce_usable = copy.deepcopy(switches_reduce)
         logging.info('usable_switches_normal = %s', switches_normal_usable)
         logging.info('usable_switches_reduce = %s', switches_reduce_usable)
 
@@ -484,19 +484,17 @@ def main():
             logging.info(genotype)
 
             if not switches_usable and max_sk <= 2:
-                switches_normal_usable = switches_normal
-                switches_reduce_usable = switches_reduce
+                switches_normal_usable = copy.deepcopy(switches_normal)
+                switches_reduce_usable = copy.deepcopy(switches_reduce)
                 logging.info('usable_switches_normal = %s', switches_normal_usable)
                 logging.info('usable_switches_reduce = %s', switches_reduce_usable)
                 switches_usable = True
         if not switches_usable:
-            switches_normal_usable = switches_normal
-            switches_reduce_usable = switches_reduce
+            switches_normal_usable = copy.deepcopy(switches_normal)
+            switches_reduce_usable = copy.deepcopy(switches_reduce)
             logging.info('usable_switches_normal = %s', switches_normal_usable)
             logging.info('usable_switches_reduce = %s', switches_reduce_usable)
 
-        switches_normal_usable = copy.deepcopy(switches_normal)
-        switches_reduce_usable = copy.deepcopy(switches_reduce)
 
         for _ in range(args.add_layer):
             if len(pre_layer)+1 == args.total_layers//3 or len(pre_layer)+1 == args.total_layers*2//3:

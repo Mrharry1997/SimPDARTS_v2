@@ -139,11 +139,11 @@ def main():
     criterion = criterion.cuda()
     if args.load_weight:
         args.learning_rate = args.adam_lr
-        optimizer = torch.optim.Adam(model.parameters(), args.learning_rate, betas=(0.9, 0.999), weight_decay=args.weight_decay)
+        optimizer_total = torch.optim.Adam(model.parameters(), args.learning_rate, betas=(0.9, 0.999), weight_decay=args.weight_decay)
         classifier_optimizer = torch.optim.Adam(model.module.classifier.parameters(), args.learning_rate, weight_decay=args.weight_decay)
         scheduler_warm = torch.optim.lr_scheduler.LambdaLR(classifier_optimizer, lr_lambda=lambda epoch:(epoch / args.warmup_epochs))
     else:
-        optimizer = torch.optim.SGD(model.parameters(), args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
+        optimizer_total = torch.optim.SGD(model.parameters(), args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
         args.warmup_epochs = 0
 
     if args.cifar100:
@@ -168,7 +168,7 @@ def main():
 
     valid_queue = torch.utils.data.DataLoader(
         valid_data, batch_size=args.batch_size, shuffle=False, pin_memory=True, num_workers=args.workers)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=(args.epochs - args.warmup_epochs))
+    scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_total, T_max=(args.epochs - args.warmup_epochs))
 
     best_acc = 0.0
     for epoch in range(args.epochs):
@@ -179,8 +179,8 @@ def main():
             optimizer = classifier_optimizer
             scheduler = scheduler_warm
         else:
-            optimizer = optimizer
-            scheduler = scheduler
+            optimizer = optimizer_total
+            scheduler = scheduler_cosine
         scheduler.step()
         logging.info('Epoch: %d lr %e', epoch, scheduler.get_lr()[0])
         model.module.drop_path_prob = args.drop_path_prob * epoch / args.epochs
